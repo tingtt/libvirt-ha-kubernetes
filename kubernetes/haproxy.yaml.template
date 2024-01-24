@@ -1,0 +1,106 @@
+# https://kubernetes.io/docs/concepts/configuration/configmap/
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: haproxy
+  namespace: kube-system
+data:
+  haproxy.cfg: |
+    global
+
+    defaults
+      timeout connect 5000
+      timeout client  50000
+      timeout server  50000
+
+    frontend inbound
+      mode            tcp
+      option          tcplog
+      bind            *:6443
+      default_backend control_planes
+
+    backend control_planes
+      mode            tcp
+      balance         roundrobin
+      option          tcp-check
+      server          node01 192.168.3.241:6443 check
+      server          node02 192.168.3.242:6443 check
+      server          node03 192.168.3.243:6443 check
+---
+# https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: haproxy
+  namespace: kube-system
+  labels:
+    app: haproxy
+spec:
+  selector:
+    matchLabels:
+      app: haproxy
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: haproxy
+    spec:
+      # initContainers:
+      # Init containers are exactly like regular containers, except:
+      # - Init containers always run to completion.
+      # - Each init container must complete successfully before the next one starts.
+      containers:
+        - name: haproxy
+          image: haproxy:alpine3.19
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+          livenessProbe:
+            tcpSocket:
+              port: 6443
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+            periodSeconds: 10
+          ports:
+            - containerPort: 6443
+              name: haproxy
+          volumeMounts:
+            - mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+              name: haproxy-config
+      volumes:
+        - name: haproxy-config
+          configMap:
+            name: haproxy
+            items:
+              - key: haproxy.cfg
+                path: haproxy.cfg
+      restartPolicy: Always
+---
+# https://kubernetes.io/docs/concepts/services-networking/service/
+apiVersion: v1
+kind: Service
+metadata:
+  name: haproxy
+  namespace: kube-system
+spec:
+  selector:
+    app: haproxy
+  type: LoadBalancer
+  ports:
+    - name: http
+      protocol: TCP
+      port: 6443
+      targetPort: 6443
