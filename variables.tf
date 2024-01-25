@@ -13,6 +13,15 @@ variable "bridge_interface" {
   default = "br0"
 }
 
+variable "libvirt_guest_user" {
+  type    = string
+  default = "root"
+}
+variable "libvirt_guest_password" {
+  type    = string
+  default = "password"
+}
+
 variable "gateway" {
   type    = string
   default = "192.168.3.1"

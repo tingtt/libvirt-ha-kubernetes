@@ -18,8 +18,8 @@ module "k8s-first-control-plane" {
   vcpu           = var.k8s_control_plane_vcpus
   memory         = var.k8s_control_plane_memory_size
   volume_size    = var.k8s_control_plane_volume_size
-  user           = "root"
-  password       = "password"
+  user           = var.libvirt_guest_user
+  password       = var.libvirt_guest_password
   cloudinit      = <<-EOS
     package_upgrade: true
     packages:
@@ -120,8 +120,8 @@ module "k8s-control-plane" {
   vcpu           = var.k8s_control_plane_vcpus
   memory         = var.k8s_control_plane_memory_size
   volume_size    = var.k8s_control_plane_volume_size
-  user           = "root"
-  password       = "password"
+  user           = var.libvirt_guest_user
+  password       = var.libvirt_guest_password
   cloudinit      = <<-EOS
     package_upgrade: true
     packages:
@@ -188,8 +188,8 @@ module "k8s-worker" {
   vcpu           = var.k8s_worker_vcpus
   memory         = var.k8s_worker_memory_size
   volume_size    = var.k8s_worker_volume_size
-  user           = "root"
-  password       = "password"
+  user           = var.libvirt_guest_user
+  password       = var.libvirt_guest_password
   cloudinit      = <<-EOS
     package_upgrade: true
     packages:

@@ -71,6 +71,9 @@ libvirt_uri = "qemu+ssh://ubuntu@192.168.3.254/system"
 #   https://registry.terraform.io/providers/dmacvicar/libvirt/latest/docs/resources/network
 bridge_interface = "br0"
 
+libvirt_guest_user = root
+libvirt_guest_password = password
+
 # mirror_target:
 #   IP of the host to run `make apply`
 mirror_target = "http://192.168.3.2:8081"
