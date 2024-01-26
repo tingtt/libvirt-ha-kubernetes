@@ -29,7 +29,7 @@ variable "gateway" {
 
 variable "mirror_target" {
   type    = string
-  default = "http://192.168.3.2:8080"
+  default = "http://192.168.3.2:8081"
 }
 
 variable "k8s_control_plane_ips" {
@@ -84,4 +84,23 @@ variable "k8s_pod_cidr" {
 variable "command" {
   type    = string
   default = ""
+}
+
+variable "argocd_git_repo" {
+  type = string
+}
+variable "argocd_git_private_key_path" {
+  type = string
+}
+variable "argocd_app_git_repo_revision" {
+  type    = string
+  default = "main"
+}
+variable "argocd_app_git_repo_dir" {
+  type    = string
+  default = "."
+}
+variable "argocd_app_dest_namespace" {
+  type    = string
+  default = "default"
 }

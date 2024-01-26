@@ -29,6 +29,7 @@
   - Service IP (LoadBalancer): `192.168.3.220`
 - ingress-nginx
   - Service IP (LoadBalancer): `192.168.3.221`
+- argocd
 
 ## Usage
 
@@ -88,6 +89,15 @@ k8s_pod_cidr = "10.0.0.0/16"
 # command:
 #   If needed, specify the command you wish to execute on each VM.
 command = "apt install -y nfs-common"
+
+# argocd_git_repo:
+#   Must be in a format for ssh.
+argocd_git_repo = git@github.com:<YOUR_GIT_REPOSITORY_URL>.git
+argocd_git_private_key_path = .ssh/id_rsa
+# argocd_git_repo_dir:
+#   Specify the directory that ArgoCD will be polling
+argocd_git_repo_dir = .
+argocd_git_repo_dir_recurse = false
 ```
 
 ### Create kubernetes manifests

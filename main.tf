@@ -27,6 +27,10 @@ module "k8s-first-control-plane" {
       - ca-certificates
       - curl
       - gpg
+    write_files:
+      - content: |
+          ${indent(6, format("%s", file(var.argocd_git_private_key_path)))}
+        path: /root/.ssh/github
     runcmd:
       - |
         apt install -y containerd=1.7.2-0ubuntu1~22.04.1
@@ -99,6 +103,39 @@ module "k8s-first-control-plane" {
         sh -c 'sleep 5m && lsof -i:8080 -t |xargs kill -9 && rm -rf /root/kubernetes' &
         echo "Installing ingress-nginx."
         kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+        echo "Installing argocd."
+        kubectl create namespace argocd
+        kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+        rm argocd-linux-amd64
+        while ! ( \
+          kubectl wait --namespace argocd \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/name=argocd-server \
+            --timeout=120s \
+        ); do sleep 10; done
+        echo "Logining to argocd."
+        kubectl port-forward svc/argocd-server -n argocd 8082:443 &
+        sleep 10s
+        export HOME=/root ; \
+          argocd login localhost:8082 --insecure --username admin --password `argocd admin initial-password -n argocd | head -n1`
+        sleep 20s
+        echo "Adding application to argocd."
+        export HOME=/root ; \
+          argocd repo add ${var.argocd_git_repo} --ssh-private-key-path /root/.ssh/github
+        sleep 30s
+        export HOME=/root ; \
+          argocd app create main --dest-server https://kubernetes.default.svc \
+            --dest-namespace ${var.argocd_app_dest_namespace} \
+            --repo ${var.argocd_git_repo} \
+            --revision ${var.argocd_app_git_repo_revision} \
+            --path ${var.argocd_app_git_repo_dir} \
+            --sync-policy automated
+        sleep 20s
+        lsof -i:8082 -t |xargs kill -9
+        echo "Waiting for haproxy VIP provisioning..."
+        while ! (curl -sk https://${var.metallb_first_ip}:6443/livez > /dev/null); do sleep 10; done
         mv -f /etc/hosts.org /etc/hosts
         tee -a /etc/hosts <<EOF
         ${var.metallb_first_ip} haproxy.${var.domain}
