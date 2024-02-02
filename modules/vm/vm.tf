@@ -97,4 +97,6 @@ resource "libvirt_domain" "guest" {
     type        = "pty"
     target_port = "0"
   }
+
+  autostart = true
 }
