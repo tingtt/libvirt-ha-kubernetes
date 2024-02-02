@@ -103,6 +103,7 @@ module "k8s-first-control-plane" {
         tee -a /etc/hosts <<EOF
         ${var.metallb_first_ip} haproxy.${var.domain}
         EOF
+        ${indent(6, format("%s", var.command))}
   EOS
   ip             = "${var.k8s_control_plane_ips[0]}/24"
   gateway        = var.gateway
@@ -171,6 +172,7 @@ module "k8s-control-plane" {
         rm join.sh
         mkdir -p /root/.kube
         cp /etc/kubernetes/admin.conf /root/.kube/config
+        ${indent(6, format("%s", var.command))}
   EOS
   ip             = "${var.k8s_control_plane_ips[count.index + 1]}/24"
   gateway        = var.gateway
@@ -236,6 +238,7 @@ module "k8s-worker" {
         curl -s ${var.k8s_control_plane_ips[0]}:8080/join.sh | head -n2 | tee join.sh
         sh join.sh
         rm join.sh
+        ${indent(6, format("%s", var.command))}
   EOS
   ip             = "${var.k8s_worker_ips[count.index]}/24"
   gateway        = var.gateway

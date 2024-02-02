@@ -84,6 +84,10 @@ metallb_first_ip = "192.168.3.220"
 nameservers = ["8.8.8.8", "8.8.4.4"]
 
 k8s_pod_cidr = "10.0.0.0/16"
+
+# command:
+#   If needed, specify the command you wish to execute on each VM.
+command = "apt install -y nfs-common"
 ```
 
 ### Create kubernetes manifests
