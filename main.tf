@@ -33,6 +33,7 @@ module "k8s-first-control-plane" {
         path: /root/.ssh/github
     runcmd:
       - |
+        #? Install dependencies
         apt install -y containerd=1.7.2-0ubuntu1~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
@@ -62,12 +63,14 @@ module "k8s-first-control-plane" {
         apt update
         apt install -y kubelet=1.29.1-1.1 kubeadm=1.29.1-1.1 kubectl=1.29.1-1.1
         apt-mark hold kubelet kubeadm kubectl
+        #! Specify host temporary for injecting kube-apiserver host
         cp /etc/hosts /etc/hosts.org
         tee -a /etc/hosts <<EOF
         ${var.k8s_control_plane_ips[0]} haproxy.${var.domain}
         EOF
         kubeadm config images pull
         mkdir /root/kubernetes
+        #? Create a Kubernetes cluster
         echo "Creating a Kubernetes cluster."
         kubeadm init --kubernetes-version=1.29.1 \
           --control-plane-endpoint=haproxy.${var.domain}:6443 \
@@ -77,6 +80,7 @@ module "k8s-first-control-plane" {
         mkdir -p /root/.kube
         cp /etc/kubernetes/admin.conf /root/.kube/config
         export KUBECONFIG=/root/.kube/config
+        #? Install calico cni
         echo "Installing calico cni."
         kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
         echo "Waiting on calico to start up..."
@@ -87,6 +91,7 @@ module "k8s-first-control-plane" {
             --timeout=120s \
         ); do sleep 10; done
         kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+        #? Install metallb
         echo "Installing metallb."
         kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
         echo "Waiting on metallb to start up..."
@@ -97,12 +102,16 @@ module "k8s-first-control-plane" {
             --timeout=120s \
         ); do sleep 10; done
         kubectl apply -f ${var.mirror_target}/metallb-l2-advertisement.yaml
+        #? Install haproxy for kube-apiserver
         echo "Installing haproxy."
         kubectl apply -f ${var.mirror_target}/haproxy.yaml
+        #! Start http server sharing join command (for 5 minutes)
         python3 -m http.server 8080 --directory /root/kubernetes &
         sh -c 'sleep 5m && lsof -i:8080 -t |xargs kill -9 && rm -rf /root/kubernetes' &
+        #? Install ingress-nginx
         echo "Installing ingress-nginx."
         kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+        #? Install argocd
         echo "Installing argocd."
         kubectl create namespace argocd
         kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
@@ -115,7 +124,9 @@ module "k8s-first-control-plane" {
             --selector=app.kubernetes.io/name=argocd-server \
             --timeout=120s \
         ); do sleep 10; done
+        #? Setup argocd
         echo "Logining to argocd."
+        #! Start port-forward svc/argocd-server
         kubectl port-forward svc/argocd-server -n argocd 8082:443 &
         sleep 10s
         export HOME=/root ; \
@@ -133,13 +144,17 @@ module "k8s-first-control-plane" {
             --path ${var.argocd_app_git_repo_dir} \
             --sync-policy automated
         sleep 20s
+        #! Stop port-forward svc/argocd-server
         lsof -i:8082 -t |xargs kill -9
+        #? Wait for haproxy VIP provisioning
         echo "Waiting for haproxy VIP provisioning..."
         while ! (curl -sk https://${var.metallb_first_ip}:6443/livez > /dev/null); do sleep 10; done
+        #! Specify host of loadbalancer for kube-apiserver
         mv -f /etc/hosts.org /etc/hosts
         tee -a /etc/hosts <<EOF
         ${var.metallb_first_ip} haproxy.${var.domain}
         EOF
+        #? Execute custom commands
         ${indent(6, format("%s", var.command))}
   EOS
   ip             = "${var.k8s_control_plane_ips[0]}/24"
@@ -169,6 +184,7 @@ module "k8s-control-plane" {
       - gpg
     runcmd:
       - |
+        #? Install dependencies
         apt install -y containerd=1.7.2-0ubuntu1~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
@@ -198,10 +214,12 @@ module "k8s-control-plane" {
         apt update
         apt install -y kubelet=1.29.1-1.1 kubeadm=1.29.1-1.1 kubectl=1.29.1-1.1
         apt-mark hold kubelet kubeadm kubectl
+        #! Specify host of loadbalancer for kube-apiserver
         tee -a /etc/hosts <<EOF
         ${var.metallb_first_ip} haproxy.${var.domain}
         EOF
         kubeadm config images pull
+        #? Join to cluster
         echo "Waiting for initialization of the first control plane..."
         while ! (curl -s ${var.k8s_control_plane_ips[0]}:8080 > /dev/null); do sleep 10; done
         curl -sL ${var.k8s_control_plane_ips[0]}:8080/join.sh | tee join.sh
@@ -209,6 +227,7 @@ module "k8s-control-plane" {
         rm join.sh
         mkdir -p /root/.kube
         cp /etc/kubernetes/admin.conf /root/.kube/config
+        #? Execute custom commands
         ${indent(6, format("%s", var.command))}
   EOS
   ip             = "${var.k8s_control_plane_ips[count.index + 1]}/24"
@@ -238,6 +257,7 @@ module "k8s-worker" {
       - gpg
     runcmd:
       - |
+        #? Install dependencies
         apt install -y containerd=1.7.2-0ubuntu1~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
@@ -267,14 +287,17 @@ module "k8s-worker" {
         apt update
         apt install -y kubelet=1.29.1-1.1 kubeadm=1.29.1-1.1 kubectl=1.29.1-1.1
         apt-mark hold kubelet kubeadm kubectl
+        #! Specify host of loadbalancer for kube-apiserver
         tee -a /etc/hosts <<EOF
         ${var.metallb_first_ip} haproxy.${var.domain}
         EOF
+        #? Join to cluster
         echo "Waiting for initialization of the first control plane..."
         while ! (curl -s ${var.k8s_control_plane_ips[0]}:8080 > /dev/null); do sleep 10; done
         curl -s ${var.k8s_control_plane_ips[0]}:8080/join.sh | head -n2 | tee join.sh
         sh join.sh
         rm join.sh
+        #? Execute custom commands
         ${indent(6, format("%s", var.command))}
   EOS
   ip             = "${var.k8s_worker_ips[count.index]}/24"
