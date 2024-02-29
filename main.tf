@@ -105,12 +105,26 @@ module "k8s-first-control-plane" {
         #? Install haproxy for kube-apiserver
         echo "Installing haproxy."
         kubectl apply -f ${var.mirror_target}/haproxy.yaml
+        #? Wait for haproxy VIP provisioning
+        echo "Waiting for haproxy VIP provisioning..."
+        while ! (curl -sk https://${var.metallb_first_ip}:6443/livez > /dev/null); do sleep 10; done
+        #! Specify host of loadbalancer for kube-apiserver
+        mv -f /etc/hosts.org /etc/hosts
+        tee -a /etc/hosts <<EOF
+        ${var.metallb_first_ip} haproxy.${var.domain}
+        EOF
         #! Start http server sharing join command (for 5 minutes)
         python3 -m http.server 8080 --directory /root/kubernetes &
         sh -c 'sleep 5m && lsof -i:8080 -t |xargs kill -9 && rm -rf /root/kubernetes' &
         #? Install ingress-nginx
         echo "Installing ingress-nginx."
         kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+        #? Execute custom commands
+        ${indent(6, format("%s", var.command))}
+        #? Wait for worker01 up
+        while ! ( \
+          kubectl wait --for=condition=Ready node/k8s-worker01 --timeout=120s \
+        ); do sleep 10; done
         #? Install argocd
         echo "Installing argocd."
         kubectl create namespace argocd
@@ -146,16 +160,6 @@ module "k8s-first-control-plane" {
         sleep 20s
         #! Stop port-forward svc/argocd-server
         lsof -i:8082 -t |xargs kill -9
-        #? Wait for haproxy VIP provisioning
-        echo "Waiting for haproxy VIP provisioning..."
-        while ! (curl -sk https://${var.metallb_first_ip}:6443/livez > /dev/null); do sleep 10; done
-        #! Specify host of loadbalancer for kube-apiserver
-        mv -f /etc/hosts.org /etc/hosts
-        tee -a /etc/hosts <<EOF
-        ${var.metallb_first_ip} haproxy.${var.domain}
-        EOF
-        #? Execute custom commands
-        ${indent(6, format("%s", var.command))}
   EOS
   ip             = "${var.k8s_control_plane_ips[0]}/24"
   gateway        = var.gateway
