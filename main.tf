@@ -34,7 +34,7 @@ module "k8s-first-control-plane" {
     runcmd:
       - |
         #? Install dependencies
-        apt install -y containerd=1.7.2-0ubuntu1~22.04.1
+        apt install -y containerd=1.7.12-0ubuntu2~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
         tee /etc/modules-load.d/k8s.conf <<EOF
@@ -61,7 +61,7 @@ module "k8s-first-control-plane" {
         deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
         EOF
         apt update
-        apt install -y kubelet=1.29.1-1.1 kubeadm=1.29.1-1.1 kubectl=1.29.1-1.1
+        apt install -y kubelet=1.29.9-1.1 kubeadm=1.29.9-1.1 kubectl=1.29.9-1.1
         apt-mark hold kubelet kubeadm kubectl
         #! Specify host temporary for injecting kube-apiserver host
         cp /etc/hosts /etc/hosts.org
@@ -189,7 +189,7 @@ module "k8s-control-plane" {
     runcmd:
       - |
         #? Install dependencies
-        apt install -y containerd=1.7.2-0ubuntu1~22.04.1
+        apt install -y containerd=1.7.12-0ubuntu2~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
         tee /etc/modules-load.d/k8s.conf <<EOF
@@ -216,7 +216,7 @@ module "k8s-control-plane" {
         deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
         EOF
         apt update
-        apt install -y kubelet=1.29.1-1.1 kubeadm=1.29.1-1.1 kubectl=1.29.1-1.1
+        apt install -y kubelet=1.29.9-1.1 kubeadm=1.29.9-1.1 kubectl=1.29.9-1.1
         apt-mark hold kubelet kubeadm kubectl
         #! Specify host of loadbalancer for kube-apiserver
         tee -a /etc/hosts <<EOF
@@ -262,7 +262,7 @@ module "k8s-worker" {
     runcmd:
       - |
         #? Install dependencies
-        apt install -y containerd=1.7.2-0ubuntu1~22.04.1
+        apt install -y containerd=1.7.12-0ubuntu2~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
         tee /etc/modules-load.d/k8s.conf <<EOF
@@ -289,7 +289,7 @@ module "k8s-worker" {
         deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
         EOF
         apt update
-        apt install -y kubelet=1.29.1-1.1 kubeadm=1.29.1-1.1 kubectl=1.29.1-1.1
+        apt install -y kubelet=1.29.9-1.1 kubeadm=1.29.9-1.1 kubectl=1.29.9-1.1
         apt-mark hold kubelet kubeadm kubectl
         #! Specify host of loadbalancer for kube-apiserver
         tee -a /etc/hosts <<EOF
