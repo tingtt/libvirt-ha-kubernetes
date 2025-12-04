@@ -34,7 +34,7 @@ module "k8s-first-control-plane" {
     runcmd:
       - |
         #? Install dependencies
-        apt install -y containerd=1.7.12-0ubuntu2~22.04.1
+        apt install -y containerd=1.7.28-0ubuntu1~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
         tee /etc/modules-load.d/k8s.conf <<EOF
@@ -189,7 +189,7 @@ module "k8s-control-plane" {
     runcmd:
       - |
         #? Install dependencies
-        apt install -y containerd=1.7.12-0ubuntu2~22.04.1
+        apt install -y containerd=1.7.28-0ubuntu1~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
         tee /etc/modules-load.d/k8s.conf <<EOF
@@ -262,7 +262,7 @@ module "k8s-worker" {
     runcmd:
       - |
         #? Install dependencies
-        apt install -y containerd=1.7.12-0ubuntu2~22.04.1
+        apt install -y containerd=1.7.28-0ubuntu1~22.04.1
         iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
         swappoff -a
         tee /etc/modules-load.d/k8s.conf <<EOF
